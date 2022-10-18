@@ -7,6 +7,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Orleans.Hosting;
 using Orleans.Internal;
@@ -21,6 +22,7 @@ public static class InMemoryTransportExtensions
 {
     public static ISiloBuilder UseInMemoryConnectionTransport(this ISiloBuilder siloBuilder, InMemoryTransportConnectionHub hub)
     {
+        Console.WriteLine(":: UseInMemoryConnectiontTransport NEW");
         siloBuilder.ConfigureServices(services =>
         {
             services.AddSingletonKeyedService<object, IConnectionFactory>(SiloConnectionFactory.ServicesKey, CreateInMemoryConnectionFactory(hub));
@@ -83,6 +85,7 @@ public class InMemoryTransportListener : IConnectionListenerFactory, IConnection
 
     public async Task ConnectAsync(InMemoryTransportConnection connection)
     {
+        Console.WriteLine(":: ConnectAsync");
         var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (_acceptQueue.Writer.TryWrite((connection, completion)))
         {
@@ -98,6 +101,7 @@ public class InMemoryTransportListener : IConnectionListenerFactory, IConnection
 
     public async ValueTask<ConnectionContext> AcceptAsync(CancellationToken cancellationToken = default)
     {
+        Console.WriteLine(":: AcceptAsync");
         if (await _acceptQueue.Reader.WaitToReadAsync(cancellationToken))
         {
             if (_acceptQueue.Reader.TryRead(out var item))
@@ -121,6 +125,7 @@ public class InMemoryTransportListener : IConnectionListenerFactory, IConnection
 
     public ValueTask<IConnectionListener> BindAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
     {
+        Console.WriteLine(":: BindAsync");
         EndPoint = endpoint;
         _hub.RegisterConnectionListenerFactory(endpoint, this);
         return new ValueTask<IConnectionListener>(this);
@@ -185,6 +190,7 @@ public class InMemoryTransportConnectionFactory : IConnectionFactory
 
     public async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
     {
+        Console.WriteLine(":: ConnectAsync");
         var listener = _hub.GetConnectionListenerFactory(endpoint);
         if (listener is null)
         {
