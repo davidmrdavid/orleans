@@ -20,46 +20,46 @@ namespace Orleans.TestingHost.InMemoryTransport;
 
 public static class InMemoryTransportExtensions
 {
-    public static ISiloBuilder UseInMemoryConnectionTransport(this ISiloBuilder siloBuilder, InMemoryTransportConnectionHub hub)
+    public static ISiloBuilder UseInMemoryConnectionTransport(this ISiloBuilder siloBuilder, InMemoryTransportConnectionHub hub, IStreamConnectionManager streamConnectionManager)
     {
         Console.WriteLine(":: UseInMemoryConnectiontTransport NEW");
         siloBuilder.ConfigureServices(services =>
         {
-            services.AddSingletonKeyedService<object, IConnectionFactory>(SiloConnectionFactory.ServicesKey, CreateInMemoryConnectionFactory(hub));
-            services.AddSingletonKeyedService<object, IConnectionListenerFactory>(SiloConnectionListener.ServicesKey, CreateInMemoryConnectionListenerFactory(hub));
-            services.AddSingletonKeyedService<object, IConnectionListenerFactory>(GatewayConnectionListener.ServicesKey, CreateInMemoryConnectionListenerFactory(hub));
+            services.AddSingletonKeyedService<object, IConnectionFactory>(SiloConnectionFactory.ServicesKey, CreateInMemoryConnectionFactory(hub, streamConnectionManager));
+            services.AddSingletonKeyedService<object, IConnectionListenerFactory>(SiloConnectionListener.ServicesKey, CreateInMemoryConnectionListenerFactory(hub, streamConnectionManager));
+            services.AddSingletonKeyedService<object, IConnectionListenerFactory>(GatewayConnectionListener.ServicesKey, CreateInMemoryConnectionListenerFactory(hub, streamConnectionManager));
         });
 
         return siloBuilder;
     }
 
-    public static IClientBuilder UseInMemoryConnectionTransport(this IClientBuilder clientBuilder, InMemoryTransportConnectionHub hub)
+    public static IClientBuilder UseInMemoryConnectionTransport(this IClientBuilder clientBuilder, InMemoryTransportConnectionHub hub, IStreamConnectionManager streamConnectionManager)
     {
         clientBuilder.ConfigureServices(services =>
         {
-            services.AddSingletonKeyedService<object, IConnectionFactory>(ClientOutboundConnectionFactory.ServicesKey, CreateInMemoryConnectionFactory(hub));
+            services.AddSingletonKeyedService<object, IConnectionFactory>(ClientOutboundConnectionFactory.ServicesKey, CreateInMemoryConnectionFactory(hub, streamConnectionManager));
         });
 
         return clientBuilder;
     }
 
-    private static Func<IServiceProvider, object, IConnectionFactory> CreateInMemoryConnectionFactory(InMemoryTransportConnectionHub hub)
+    private static Func<IServiceProvider, object, IConnectionFactory> CreateInMemoryConnectionFactory(InMemoryTransportConnectionHub hub, IStreamConnectionManager connectionManager)
     {
         return (IServiceProvider sp, object key) =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var sharedMemoryPool = sp.GetRequiredService<SharedMemoryPool>();
-            return new InMemoryTransportConnectionFactory(hub, loggerFactory, sharedMemoryPool);
+            return new InMemoryTransportConnectionFactory(hub, loggerFactory, sharedMemoryPool, connectionManager);
         };
     }
 
-    private static Func<IServiceProvider, object, IConnectionListenerFactory> CreateInMemoryConnectionListenerFactory(InMemoryTransportConnectionHub hub)
+    private static Func<IServiceProvider, object, IConnectionListenerFactory> CreateInMemoryConnectionListenerFactory(InMemoryTransportConnectionHub hub, IStreamConnectionManager connectionManager)
     {
         return (IServiceProvider sp, object key) =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var sharedMemoryPool = sp.GetRequiredService<SharedMemoryPool>();
-            return new InMemoryTransportListener(hub, loggerFactory, sharedMemoryPool);
+            return new InMemoryTransportListener(hub, loggerFactory, sharedMemoryPool, connectionManager);
         };
     }
 }
@@ -71,12 +71,14 @@ public class InMemoryTransportListener : IConnectionListenerFactory, IConnection
     private readonly ILoggerFactory _loggerFactory;
     private readonly SharedMemoryPool _memoryPool;
     private readonly CancellationTokenSource _disposedCts = new();
+    private readonly IStreamConnectionManager connectionManager;
 
-    public InMemoryTransportListener(InMemoryTransportConnectionHub hub, ILoggerFactory loggerFactory, SharedMemoryPool memoryPool)
+    public InMemoryTransportListener(InMemoryTransportConnectionHub hub, ILoggerFactory loggerFactory, SharedMemoryPool memoryPool, IStreamConnectionManager connectionManager)
     {
         _hub = hub;
         _loggerFactory = loggerFactory;
         _memoryPool = memoryPool;
+        this.connectionManager = connectionManager;
     }
 
     public CancellationToken OnDisposed => _disposedCts.Token;
@@ -111,7 +113,8 @@ public class InMemoryTransportListener : IConnectionListenerFactory, IConnection
                     _memoryPool.Pool,
                     _loggerFactory.CreateLogger<InMemoryTransportConnection>(),
                     other: remoteConnectionContext,
-                    localEndPoint: EndPoint);
+                    localEndPoint: EndPoint,
+                    connectionManager);
 
                 // Set the result to true to indicate that the connection was accepted.
                 item.ConnectionAcceptedTcs.TrySetResult(true);
@@ -178,14 +181,16 @@ public class InMemoryTransportConnectionFactory : IConnectionFactory
     private readonly ILoggerFactory _loggerFactory;
     private readonly SharedMemoryPool _memoryPool;
     private readonly IPEndPoint _localEndpoint;
+    private readonly IStreamConnectionManager _streamConnectionManager;
 
-    internal InMemoryTransportConnectionFactory(InMemoryTransportConnectionHub hub, ILoggerFactory loggerFactory, SharedMemoryPool memoryPool)
+    internal InMemoryTransportConnectionFactory(InMemoryTransportConnectionHub hub, ILoggerFactory loggerFactory, SharedMemoryPool memoryPool, IStreamConnectionManager connManager)
     {
         _hub = hub;
         _loggerFactory = loggerFactory;
         _memoryPool = memoryPool;
         var myRng = new Random();
         _localEndpoint = new IPEndPoint(IPAddress.Loopback, myRng.Next(1024, ushort.MaxValue - 1024));
+        _streamConnectionManager = connManager;
     }
 
     public async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
@@ -201,7 +206,8 @@ public class InMemoryTransportConnectionFactory : IConnectionFactory
             _memoryPool.Pool,
             _loggerFactory.CreateLogger<InMemoryTransportConnection>(),
             _localEndpoint,
-            endpoint);
+            endpoint,
+            _streamConnectionManager);
         await listener.ConnectAsync(connectionContext).WithCancellation(cancellationToken);
         return connectionContext;
     }
