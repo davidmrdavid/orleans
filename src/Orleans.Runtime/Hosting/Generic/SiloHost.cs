@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +13,11 @@ namespace Orleans.Hosting
         private readonly Silo silo;
         private readonly SiloApplicationLifetime applicationLifetime;
         private bool isDisposing;
+
+        public IPEndPoint GetEndPoint()
+        {
+            return this.silo.SiloAddress.Endpoint;
+        }
 
         public SiloHost(Silo silo, IServiceProvider services)
         {

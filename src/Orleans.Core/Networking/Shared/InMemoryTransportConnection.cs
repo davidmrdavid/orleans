@@ -9,23 +9,28 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Logging;
 using Orleans.Networking.Shared;
-
+using Orleans.Runtime.Messaging;
 
 namespace Orleans.Runtime.Development
 {
+
     public class StreamConnectionManager: IStreamConnectionManager 
     {
         private Stream connectionA;
         private Stream connectionB;
+        private string name;
 
         public Stream GetConnectionA() => this.connectionA;
         public Stream GetConnectionB() => this.connectionB;
+        public string GetName() => this.name;
 
 
-        public StreamConnectionManager(Stream connA, Stream connB)
+
+        public StreamConnectionManager(Stream connA, Stream connB, string name)
         {
             connectionA = connA;
             connectionB = connB;
+            this.name = name;
         }
     }
 
@@ -33,6 +38,7 @@ namespace Orleans.Runtime.Development
     {
         public Stream GetConnectionA();
         public Stream GetConnectionB();
+        public string GetName();
 
     }
 
@@ -45,6 +51,7 @@ namespace Orleans.Runtime.Development
 
         private InMemoryTransportConnection(MemoryPool<byte> memoryPool, ILogger logger, DuplexPipe.DuplexPipePair pair, EndPoint localEndPoint, EndPoint remoteEndPoint)
         {
+            var b = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             MemoryPool = memoryPool;
             _logger = logger;
 
@@ -59,22 +66,13 @@ namespace Orleans.Runtime.Development
 
         public static InMemoryTransportConnection Create(MemoryPool<byte> memoryPool, ILogger logger, EndPoint localEndPoint, EndPoint remoteEndPoint, IStreamConnectionManager connManager)
         {
-            /*Stream s1 = connManager.GetConnectionA();
-            PipeReader pr1 = PipeReader.Create(s1);
-            PipeWriter pw1 = PipeWriter.Create(s1);
-            var pipe1 = new DuplexPipe(pr1, pw1);
 
-            Stream s2 = connManager.GetConnectionB();
-            PipeReader pr2 = PipeReader.Create(s2);
-            PipeWriter pw2 = PipeWriter.Create(s2);
-            var pipe2 = new DuplexPipe(pr2, pw2);
 
-            var pair = new DuplexPipe.DuplexPipePair(transport: pipe1, application: pipe2);*/
 
             var pair = DuplexPipe.CreateConnectionPair(
                     new PipeOptions(memoryPool, readerScheduler: PipeScheduler.Inline, useSynchronizationContext: false),
                     new PipeOptions(memoryPool, writerScheduler: PipeScheduler.Inline, useSynchronizationContext: false));
-            
+
             return new InMemoryTransportConnection(memoryPool, logger, pair, localEndPoint, remoteEndPoint);
         }
 
@@ -82,19 +80,21 @@ namespace Orleans.Runtime.Development
         {
             // Swap the application & tranport pipes since we're going in the other direction.
 
-            /*Stream s1 = connManager.GetConnectionA();
-            PipeReader pr1 = PipeReader.Create(s1);
-            PipeWriter pw1 = PipeWriter.Create(s1);
+            StreamPipeReaderOptions opts1 = new StreamPipeReaderOptions(leaveOpen: true);
+            StreamPipeWriterOptions opts2 = new StreamPipeWriterOptions(leaveOpen: true);
+            Stream s1 = connManager.GetConnectionA();
+            PipeReader pr1 = PipeReader.Create(s1, opts1);
+            PipeWriter pw1 = PipeWriter.Create(s1, opts2);
             var pipe1 = new DuplexPipe(pr1, pw1);
 
             Stream s2 = connManager.GetConnectionB();
-            PipeReader pr2 = PipeReader.Create(s2);
-            PipeWriter pw2 = PipeWriter.Create(s2);
+            PipeReader pr2 = PipeReader.Create(s2, opts1);
+            PipeWriter pw2 = PipeWriter.Create(s2, opts2);
             var pipe2 = new DuplexPipe(pr2, pw2);
 
-            var pair = new DuplexPipe.DuplexPipePair(transport: pipe2, application: pipe1);*/
+            var pair = new DuplexPipe.DuplexPipePair(transport: pipe2, application: pipe1);
 
-            var pair = new DuplexPipe.DuplexPipePair(transport: other.Application, application: other.Transport);
+            //var pair = new DuplexPipe.DuplexPipePair(transport: other.Application, application: other.Transport);
             var remoteEndPoint = other.LocalEndPoint;
             return new InMemoryTransportConnection(memoryPool, logger, pair, localEndPoint, remoteEndPoint);
         }

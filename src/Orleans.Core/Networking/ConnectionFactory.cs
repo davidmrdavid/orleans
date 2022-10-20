@@ -7,6 +7,7 @@ using Orleans.Configuration;
 
 namespace Orleans.Runtime.Messaging
 {
+
     internal abstract class ConnectionFactory
     {
         private readonly IConnectionFactory connectionFactory;
