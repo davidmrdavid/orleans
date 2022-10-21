@@ -162,7 +162,7 @@
 
   <!-- For Debug builds generated a date/time dependent version suffix -->
   <PropertyGroup Condition=" '$(Configuration)'=='Debug' ">
-    <VersionSuffix Condition=" '$(VersionSuffix)'=='' ">hackathon18</VersionSuffix>
+    <VersionSuffix Condition=" '$(VersionSuffix)'=='' ">hackathon20</VersionSuffix>
     <VersionSuffix Condition=" '$(VersionDateSuffix)'!='' ">$(VersionSuffix)-$(VersionDateSuffix)</VersionSuffix>
   </PropertyGroup>
 
