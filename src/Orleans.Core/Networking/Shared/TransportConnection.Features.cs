@@ -28,7 +28,7 @@ namespace Orleans.Networking.Shared
         MemoryPool<byte> MemoryPool { get; }
     }
 
-    internal partial class TransportConnection : IConnectionIdFeature,
+    public partial class TransportConnection : IConnectionIdFeature,
                                                  IConnectionTransportFeature,
                                                  IConnectionItemsFeature,
                                                  IMemoryPoolFeature,
@@ -61,7 +61,7 @@ namespace Orleans.Networking.Shared
         void IConnectionLifetimeFeature.Abort() => Abort(new ConnectionAbortedException("The connection was aborted by the application via IConnectionLifetimeFeature.Abort()."));
     }
 
-    internal partial class TransportConnection : IFeatureCollection
+    public partial class TransportConnection : IFeatureCollection
     {
         private static readonly Type IConnectionIdFeatureType = typeof(IConnectionIdFeature);
         private static readonly Type IConnectionTransportFeatureType = typeof(IConnectionTransportFeature);

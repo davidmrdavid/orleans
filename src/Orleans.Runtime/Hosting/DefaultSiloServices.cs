@@ -355,6 +355,8 @@ namespace Orleans.Hosting
             services.AddSingleton<ILifecycleParticipant<ISiloLifecycle>, ConnectionManagerLifecycleAdapter<ISiloLifecycle>>();
             services.AddSingleton<ILifecycleParticipant<ISiloLifecycle>, SiloConnectionMaintainer>();
 
+            Console.WriteLine(":: services");
+            /*
             services.AddSingletonKeyedService<object, IConnectionFactory>(
                 SiloConnectionFactory.ServicesKey,
                 (sp, key) => ActivatorUtilities.CreateInstance<SocketConnectionFactory>(sp));
@@ -364,6 +366,7 @@ namespace Orleans.Hosting
             services.AddSingletonKeyedService<object, IConnectionListenerFactory>(
                 GatewayConnectionListener.ServicesKey,
                 (sp, key) => ActivatorUtilities.CreateInstance<SocketConnectionListenerFactory>(sp));
+            */
 
             services.TryAddTransient<IMessageSerializer>(sp => ActivatorUtilities.CreateInstance<MessageSerializer>(sp,
                 sp.GetRequiredService<IOptions<SiloMessagingOptions>>().Value.MaxMessageHeaderSize,

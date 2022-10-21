@@ -2,7 +2,7 @@ using System.IO.Pipelines;
 
 namespace Orleans.Networking.Shared
 {
-    internal class DuplexPipe : IDuplexPipe
+    public class DuplexPipe : IDuplexPipe
     {
         public DuplexPipe(PipeReader reader, PipeWriter writer)
         {
